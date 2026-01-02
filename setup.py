@@ -202,6 +202,23 @@ if not SKIP_CUDA_BUILD:
         )
 
     if HAS_SM90:
+        # SM90 kernel must only be compiled for SM90 architecture
+        # Filter out architecture flags from NVCC_FLAGS and add only SM90
+        SM90_NVCC_FLAGS = []
+        skip_next = False
+        for flag in NVCC_FLAGS:
+            if skip_next:
+                skip_next = False
+                continue
+            if flag == "-gencode":
+                # Skip this flag and the next one (the architecture specification)
+                skip_next = True
+                continue
+            SM90_NVCC_FLAGS.append(flag)
+
+        # Add only SM90 architecture
+        SM90_NVCC_FLAGS += ["-gencode", "arch=compute_90a,code=sm_90a"]
+
         ext_modules.append(
             CUDAExtension(
                 name="sageattention._qattn_sm90",
@@ -209,7 +226,7 @@ if not SKIP_CUDA_BUILD:
                     "csrc/qattn/pybind_sm90.cpp",
                     "csrc/qattn/qk_int_sv_f8_cuda_sm90.cu",
                 ],
-                extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
+                extra_compile_args={"cxx": CXX_FLAGS, "nvcc": SM90_NVCC_FLAGS},
                 extra_link_args=['-lcuda'],
             )
         )
